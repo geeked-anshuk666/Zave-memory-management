@@ -1,12 +1,12 @@
 """
 Quick throwaway script to validate OpenRouter LLM output.
 
-Tests that meta-llama/llama-3.1-8b-instruct:free returns valid,
-parseable JSON matching our expected memory extraction schema.
+Tests that free models return valid, parseable JSON matching 
+our expected memory extraction schema.
 
 Usage:
-    pip install openai
-    export OPENROUTER_API_KEY=sk-or-...
+    pip install openai python-dotenv
+    # Ensure .env has OPENROUTER_API_KEY
     python scripts/test_llm_prompt.py
 """
 import json
@@ -14,19 +14,37 @@ import os
 import sys
 import time
 
+from dotenv import load_dotenv
 from openai import OpenAI
+
+# Load .env file
+load_dotenv()
 
 # --- Config ---
 API_KEY = os.getenv("OPENROUTER_API_KEY")
 BASE_URL = "https://openrouter.ai/api/v1"
-MODEL = "meta-llama/llama-3.1-8b-instruct:free"
+
+# List of free models to try (Confirmed active by user)
+MODELS = [
+    "meta-llama/llama-3.3-70b-instruct:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "qwen/qwen3-coder:free",
+    "minimax/minimax-m2.5:free",
+    "google/gemini-2.0-flash-exp:free",
+]
 
 if not API_KEY:
-    print("ERROR: Set OPENROUTER_API_KEY environment variable first.")
-    print("  export OPENROUTER_API_KEY=sk-or-...")
+    print("ERROR: Set OPENROUTER_API_KEY in .env file.")
     sys.exit(1)
 
-client = OpenAI(api_key=API_KEY, base_url=BASE_URL)
+client = OpenAI(
+    api_key=API_KEY, 
+    base_url=BASE_URL,
+    default_headers={
+        "HTTP-Referer": "https://github.com/zave/zave-memory-system",
+        "X-Title": "Zave Memory System",
+    }
+)
 
 # --- The exact system prompt we'll use in production ---
 SYSTEM_PROMPT = """You are a user behavior analyst for a mobile commerce app. Your job is to extract structured behavioral signals from raw user activity data.
@@ -83,46 +101,43 @@ TEST_PAYLOADS = [
 ]
 
 
-def test_single_event(payload: dict) -> dict | None:
-    """Send one event to the LLM, validate JSON output."""
-    user_msg = f"Analyze this user activity record:\n{json.dumps([payload])}"
+def call_llm(user_msg: str, max_tokens: int = 1000) -> str | None:
+    """Try various free models until one works."""
+    for model in MODELS:
+        print(f"  Trying model: {model}...")
+        start = time.time()
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_msg},
+                ],
+                temperature=0.1,
+                max_tokens=max_tokens,
+            )
+            elapsed = time.time() - start
+            raw = response.choices[0].message.content.strip()
+            print(f"    Success! ({elapsed:.2f}s)")
+            return raw
+        except Exception as e:
+            err_msg = str(e)
+            print(f"    FAILED: {err_msg[:80]}...")
+            continue
+    return None
 
-    print(f"\n--- Testing user_id: {payload['user_id']} ---")
-    start = time.time()
 
+def validate_response(raw_output: str) -> dict | None:
+    """Parse and validate the raw LLM JSON output."""
     try:
-        response = client.chat.completions.create(
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_msg},
-            ],
-            temperature=0.1,
-            max_tokens=1000,
-        )
-    except Exception as e:
-        print(f"  API ERROR: {e}")
-        return None
-
-    elapsed = time.time() - start
-    raw = response.choices[0].message.content.strip()
-
-    print(f"  Response time: {elapsed:.2f}s")
-    print(f"  Tokens used: {response.usage.total_tokens if response.usage else 'N/A'}")
-
-    # try to parse JSON
-    try:
-        parsed = json.loads(raw)
+        parsed = json.loads(raw_output)
         print(f"  JSON parse: ✅ VALID")
     except json.JSONDecodeError as e:
         print(f"  JSON parse: ❌ FAILED — {e}")
-        print(f"  Raw output:\n{raw[:500]}")
         return None
 
-    # validate structure
     if "results" not in parsed:
         print(f"  Structure: ❌ Missing 'results' key")
-        print(f"  Got keys: {list(parsed.keys())}")
         return None
 
     results = parsed["results"]
@@ -138,95 +153,62 @@ def test_single_event(payload: dict) -> dict | None:
         return None
 
     print(f"  Structure: ✅ VALID")
-    print(f"  user_id: {result.get('user_id')}")
-    print(f"  persistent: {json.dumps(result.get('persistent_updates', {}), indent=2)}")
-    print(f"  episodic ({len(result.get('episodic_events', []))} events): ", end="")
-    for evt in result.get("episodic_events", []):
-        print(f"\n    - [{evt.get('event_type', '?')}] {evt.get('description', '?')}", end="")
-    print()
-    if result.get("inferred_preferences"):
-        print(f"  preferences: {result['inferred_preferences']}")
-    if result.get("contextual_signals"):
-        print(f"  context: {result['contextual_signals']}")
-
-    return parsed
-
-
-def test_batch() -> dict | None:
-    """Send all 3 events as a batch — this is how production works."""
-    print("\n" + "=" * 60)
-    print("BATCH TEST — 3 events in one call (production mode)")
-    print("=" * 60)
-
-    user_msg = f"Analyze these user activity records:\n{json.dumps(TEST_PAYLOADS)}"
-
-    start = time.time()
-
-    try:
-        response = client.chat.completions.create(
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_msg},
-            ],
-            temperature=0.1,
-            max_tokens=2000,
-        )
-    except Exception as e:
-        print(f"  API ERROR: {e}")
-        return None
-
-    elapsed = time.time() - start
-    raw = response.choices[0].message.content.strip()
-
-    print(f"  Response time: {elapsed:.2f}s")
-    print(f"  Tokens used: {response.usage.total_tokens if response.usage else 'N/A'}")
-
-    try:
-        parsed = json.loads(raw)
-        print(f"  JSON parse: ✅ VALID")
-    except json.JSONDecodeError as e:
-        print(f"  JSON parse: ❌ FAILED — {e}")
-        print(f"  Raw output:\n{raw[:800]}")
-        return None
-
-    results = parsed.get("results", [])
-    print(f"  Results count: {len(results)} (expected: 3)")
-
-    for r in results:
-        uid = r.get("user_id", "unknown")
-        events = r.get("episodic_events", [])
-        prefs = r.get("inferred_preferences", [])
-        print(f"  [{uid}] → {len(events)} events, {len(prefs)} preferences")
-
     return parsed
 
 
 if __name__ == "__main__":
     print("=" * 60)
     print(f"LLM Prompt Validation — OpenRouter")
-    print(f"Model: {MODEL}")
+    print(f"Models to check: {MODELS}")
     print("=" * 60)
 
-    # individual tests
     all_passed = True
+    
+    # 1. Individual tests
     for payload in TEST_PAYLOADS:
-        result = test_single_event(payload)
-        if result is None:
+        print(f"\n--- Testing user_id: {payload['user_id']} ---")
+        user_msg = f"Analyze this user activity record:\n{json.dumps([payload])}"
+        raw_output = call_llm(user_msg)
+        
+        if raw_output:
+            result = validate_response(raw_output)
+            if result:
+                # Brief visual check
+                extracted = result["results"][0]
+                uid = extracted.get("user_id")
+                events = extracted.get("episodic_events", [])
+                print(f"    [OK] uid: {uid}, events: {len(events)}")
+            else:
+                all_passed = False
+        else:
+            print(f"  ❌ All models failed for this user.")
             all_passed = False
 
-    # batch test
-    batch_result = test_batch()
-    if batch_result is None:
+    # 2. Batch test
+    print("\n" + "=" * 60)
+    print("BATCH TEST — 3 events in one call")
+    print("=" * 60)
+    
+    batch_msg = f"Analyze these user activity records:\n{json.dumps(TEST_PAYLOADS)}"
+    batch_raw = call_llm(batch_msg, max_tokens=2000)
+    
+    if batch_raw:
+        batch_result = validate_response(batch_raw)
+        if batch_result:
+            count = len(batch_result.get("results", []))
+            print(f"    [OK] Batch results count: {count} (expected: 3)")
+            if count != 3:
+                all_passed = False
+        else:
+            all_passed = False
+    else:
+        print(f"  ❌ All models failed for batch test.")
         all_passed = False
 
     print("\n" + "=" * 60)
     if all_passed:
         print("✅ ALL TESTS PASSED — Prompt is production-ready.")
-        print("   The system prompt reliably produces valid JSON.")
         print("   Proceed to Phase 2 (infrastructure build).")
     else:
-        print("❌ SOME TESTS FAILED — Prompt needs tuning.")
-        print("   Check raw output above and adjust SYSTEM_PROMPT.")
-        print("   Consider trying: mistralai/mistral-7b-instruct:free")
+        print("❌ SOME TESTS FAILED")
     print("=" * 60)

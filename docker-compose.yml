@@ -1,0 +1,50 @@
+services:
+  api:
+    build: .
+    container_name: zave-api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - zave-network
+
+  worker:
+    build: .
+    container_name: zave-worker
+    command: celery -A app.workers.celery_app worker --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - mongodb
+    networks:
+      - zave-network
+
+  mongodb:
+    image: mongo:6.0
+    container_name: zave-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - zave-network
+
+  redis:
+    image: redis:7.0-alpine
+    container_name: zave-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - zave-network
+
+networks:
+  zave-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
