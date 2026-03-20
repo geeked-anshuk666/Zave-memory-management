@@ -11,10 +11,10 @@ logger = logging.getLogger(__name__)
 # System prompt optimized for structured extraction from e-commerce events
 SYSTEM_PROMPT = """
 You are a behavioral analysis engine for an e-commerce platform.
-Your task is to extract user preferences, persona traits, and intent from raw activity events.
+Your task is to extract user preferences, persona traits, and intent from raw unstructured text/logs.
 
 STRICT RULES:
-1. Return ONLY valid JSON. 
+1. Return ONLY valid JSON.
 2. No preamble, no explanation, no markdown blocks.
 3. If an event has no clear signal for a field, use null.
 4. Time of day must be one of: [morning, afternoon, evening, night].
@@ -57,10 +57,11 @@ class LLMService:
 
     async def extract_behavioral_data(self, event_data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         """
-        Calls LLM to extract behavioral data from a single event.
+        Calls LLM to extract behavioral data from an unstructured event payload.
         Includes ranked fallback for reliable free-tier usage.
         """
-        prompt = f"Analyze this event and provide behavioral updates:\n{json.dumps(event_data, indent=2)}"
+        raw_payload = event_data.get("raw_payload", "")
+        prompt = f"Analyze this raw unstructured event payload and extract behavioral updates:\n\nRAW PAYLOAD:\n{raw_payload}"
         
         for model in self.models:
             try:

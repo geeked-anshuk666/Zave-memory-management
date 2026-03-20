@@ -43,7 +43,7 @@ Thumbs.db
 
 # Private docs — personal understanding notes, not for evaluators
 _private_docs/
-
+docs/
 files/
 .venv/
 .agent/

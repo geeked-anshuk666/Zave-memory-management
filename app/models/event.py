@@ -1,14 +1,10 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from typing import Dict, Any, Optional
 from datetime import datetime
 
-class UserEvent(BaseModel):
-    user_id: str = Field(..., description="Unique ID of the user")
-    event_type: str = Field(..., description="Type of activity (view_product, purchase, etc.)")
-    product_id: Optional[str] = None
-    category: Optional[str] = None
-    price: Optional[float] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+class RawEvent(BaseModel):
+    user_id: str = Field(..., description="Unique identifier for the user to map to memory profile")
+    raw_payload: str = Field(..., description="Raw unstructured text, logs, or JSON payload. Limit to 50KB.")
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 class EventResponse(BaseModel):

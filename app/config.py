@@ -1,22 +1,12 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import Optional
 
 class Settings(BaseSettings):
-    # API
-    PORT: int = 8000
-    API_KEY: str = "dev_secret_key"
-    
-    # LLM
-    OPENROUTER_API_KEY: str
-    
-    # DB
-    MONGO_URI: str = "mongodb://localhost:27017"
-    REDIS_URI: str = "redis://localhost:6379/0"
-    
-    # App
-    DEBUG: bool = False
-    DATABASE_NAME: str = "zave_memory"
-    
+    REDIS_URI: str = "redis://redis:6379/0"
+    MONGODB_URI: str = "mongodb://mongodb:27017"
+    API_KEY: str = "default_secret_key"
+    OPENROUTER_API_KEY: str = ""
+    MAX_EPISODIC_EVENTS: int = -100
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 settings = Settings()

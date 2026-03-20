@@ -17,9 +17,14 @@ class EpisodicMemory(BaseModel):
 
 class UserMemory(BaseModel):
     user_id: str
+
     persistent: PersistentMemory = Field(default_factory=PersistentMemory)
+
     episodic: List[EpisodicMemory] = Field(default_factory=list, description="Bounded to last 100 events")
+
     semantic_interests: List[str] = Field(default_factory=list, description="Set of inferred interests")
+
     contextual_summary: Optional[str] = None
+    
     version: int = 1
     updated_at: datetime = Field(default_factory=datetime.utcnow)

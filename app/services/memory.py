@@ -2,7 +2,9 @@ import logging
 from datetime import datetime
 from typing import Dict, Any
 from app.db.mongo import db
-from app.models.memory import UserMemory
+from app.models.memory import UserMemory, EpisodicMemory
+from pydantic import ValidationError
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -40,13 +42,26 @@ class MemoryService:
 
             # Add Episodic updates with $slice bounding
             if new_episodes:
-                update_query["$push"] = {
-                    "episodic": {
-                        "$each": new_episodes,
-                        "$slice": -100,  # Keep only the last 100 events
-                        "$sort": {"timestamp": 1}
+                valid_episodic = []
+                for item in new_episodes:
+                    try:
+                        if isinstance(item, dict):
+                            if "timestamp" not in item or item.get("timestamp") is None:
+                                item["timestamp"] = datetime.utcnow().isoformat()
+                            valid_item = EpisodicMemory(**item)
+                            valid_episodic.append(valid_item.model_dump(mode='python'))
+                    except ValidationError as e:
+                        logger.warning(f"Invalid episodic event for user {user_id}: {item}. Error: {e}")
+                        continue
+                
+                if valid_episodic:
+                    update_query["$push"] = {
+                        "episodic": {
+                            "$each": valid_episodic,
+                            "$slice": settings.MAX_EPISODIC_EVENTS,  # Keep only configured last events
+                            "$sort": {"timestamp": 1}
+                        }
                     }
-                }
 
             # Add Semantic updates via $addToSet (unique interests only)
             if new_interests:
