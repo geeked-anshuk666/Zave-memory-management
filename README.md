@@ -1,10 +1,10 @@
-# Zave Memory System 🧠
+# Zave Memory System
 
 Zave is a high-performance, real-time user behavioral analysis engine designed for modern e-commerce. It transforms noisy, unstructured clickstream logs into a multi-layered "User Memory" profile that powers hyper-personalization at sub-10ms speeds.
 
 ---
 
-## 🚀 The "Zave" Philosophy
+## The "Zave" Philosophy
 
 Most systems filter data *before* storing it, losing valuable context forever. Zave uses a **Data Lake** architecture:
 1. **Raw Ingestion**: We capture every raw event (logs, text, JSON) exactly as it arrives.
@@ -13,7 +13,7 @@ Most systems filter data *before* storing it, losing valuable context forever. Z
 
 ---
 
-## 🏗️ Technical Architecture
+## Technical Architecture
 
 ```mermaid
 graph TD
@@ -31,7 +31,7 @@ graph TD
 
 ---
 
-## 🛠️ Features & Stack
+## Features & Stack
 
 - **Data Lake Ingestion**: Handles raw, unstructured text/logs (`RawEvent` model).
 - **4-Layer Memory Model**:
@@ -45,7 +45,7 @@ graph TD
 
 ---
 
-## 🚦 Quick Start & Demo Guide
+## Quick Start & Demo Guide
 
 ### 1. Boot the Stack
 Ensure you have your `OPENROUTER_API_KEY` in the `.env` file, then run:
@@ -71,16 +71,16 @@ Open **`http://localhost:8000/docs`** and follow these steps to wow the judges:
     - Click **"Execute"** again immediately. (Watch the **~2ms** Redis Cache hit).
 ---
 
-## 🛠️ Core Deliverables & Trade-offs
+## Core Deliverables & Trade-offs
 
-### ✅ Requirement Checklist
+### Requirement Checklist
 - [x] **GitHub Repository**: [Zave Memory Management](https://github.com/geeked-anshuk666/Zave-memory-management)
 - [x] **README**: Comprehensive architecture and philosophy.
 - [x] **API Documentation**: Automated Swagger UI at `/docs`.
 - [x] **Sample Data & Scripts**: Realistic simulation in `scripts/simulate_events.py`.
 - [x] **Professional Commentary**: Every file documented for human clarity.
 
-### ⚖️ Architecture Trade-offs
+### Architecture Trade-offs
 1. **Eventual Consistency vs. Real-time Ingestion**: We chose an **asynchronous (Celery)** model. *Trade-off:* User memory isn't updated *instantly* (takes ~5-15s), but the API response for the storefront stays incredibly fast (<30ms).
 2. **MongoDB vs. SQL**: We chose **MongoDB**. *Trade-off:* Losing relational constraints, but gaining the ability to store deeply nested, evolving "Cognitive Layers" without migrations.
 3. **Redis Cache-Aside**: *Trade-off:* We use extra RAM for caching, but the millisecond performance gain for the end-user outweighs the infrastructure cost.
@@ -88,5 +88,5 @@ Open **`http://localhost:8000/docs`** and follow these steps to wow the judges:
 
 ---
 
-## ⚖️ License
+## License
 MIT - Built for the Zave Behavioral Hackathon.
