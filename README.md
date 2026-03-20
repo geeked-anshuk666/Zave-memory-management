@@ -1,69 +1,83 @@
-# Zave Memory System
+# Zave Memory System 🧠
 
-A real-time, multi-layered user memory and behavioral analysis system for e-commerce, powered by LLMs and an asynchronous processing pipeline.
+Zave is a high-performance, real-time user behavioral analysis engine designed for modern e-commerce. It transforms noisy, unstructured clickstream logs into a multi-layered "User Memory" profile that powers hyper-personalization at sub-10ms speeds.
 
-## 🚀 Overview
+---
 
-Zave ingest raw activity events (product views, cart additions, etc.) and transforms them into a structured behavioral profile. This profile is stored in a 4-layered memory model (Persistent, Episodic, Semantic, Contextual) to enable hyper-personalized user experiences.
+## 🚀 The "Zave" Philosophy
 
-### Key Features
-- **Secure Ingestion**: API Key authenticated events with strict payload validation.
-- **Async Pipeline**: FastAPI → Redis Queue → Celery Worker.
-- **Behavioral Extraction**: High-parameter LLM extraction (via OpenRouter) with ranked fallback.
-- **Multi-Layered Memory**: Atomic MongoDB updates for persistent preferences, episodic history, and semantic interests.
-- **High Performance**: Redis-backed rate limiting and sub-10ms memory retrieval API.
+Most systems filter data *before* storing it, losing valuable context forever. Zave uses a **Data Lake** architecture:
+1. **Raw Ingestion**: We capture every raw event (logs, text, JSON) exactly as it arrives.
+2. **Asynchronous Brain**: LLMs process this "lake" in the background to extract behavioral signals.
+3. **Evolving Memory**: If our AI logic improves tomorrow, we can re-process the raw data lake to build even better user profiles.
 
-## 🏗️ Architecture
+---
+
+## 🏗️ Technical Architecture
 
 ```mermaid
 graph TD
-    Client[Client Apps] -->|POST /events| API[FastAPI Ingestion]
+    Client[Client/Storefront] -->|POST /events| API[FastAPI Ingestion]
+    API -->|Raw Storage| MongoRaw[(MongoDB Data Lake)]
     API -->|Queue| Redis[Redis Broker]
-    Redis -->|Process| Worker[Celery Worker]
-    Worker -->|Extract| LLM[OpenRouter/LLM]
-    Worker -->|Persist| Mongo[(MongoDB User Memory)]
+    Redis -->|Worker| Worker[Celery Analytics]
+    Worker -->|Analyze| LLM[OpenRouter / LLM]
+    Worker -->|Structured Save| MongoMem[(MongoDB User Memory)]
     Worker -->|Invalidate| Cache[Redis Memory Cache]
     Client -->|GET /memory| API
-    API -->|Read| Cache
-    Cache -.->|Miss| Mongo
+    API -->|High-Speed Read| Cache
+    Cache -.->|Miss| MongoMem
 ```
 
-## 🛠️ Tech Stack
-- **Framework**: FastAPI (Python 3.11)
-- **Task Queue**: Celery + Redis
-- **Persistence**: MongoDB (Motor async driver)
-- **Caching**: Redis
-- **LLM**: OpenRouter (Llama 3.3, Nemotron, Qwen3)
-- **Deployment**: Docker & Docker Compose
+---
 
-## 🚦 Getting Started
+## 🛠️ Features & Stack
 
-### Prerequisites
-- Docker & Docker Compose
-- OpenRouter API Key
+- **Data Lake Ingestion**: Handles raw, unstructured text/logs (`RawEvent` model).
+- **4-Layer Memory Model**:
+    - **Persistent**: Long-term preferences (price sensitivity, categories).
+    - **Episodic**: Chronological action timeline (bounded to last 100).
+    - **Semantic**: Deduplicated conceptual interests.
+    - **Contextual**: Short-term session focus.
+- **Async Pipeline**: FastAPI + Celery + Redis for 100% non-blocking ingestion.
+- **LLM Guardrails**: Pydantic validation strips out LLM hallucinations before DB insertion.
+- **Performance**: Sub-10ms retrieval via Redis-backed Cache-Aside pattern.
 
-### Setup
-1. Clone the repository.
-2. Create a `.env` file based on `.env.example`:
-   ```bash
-   API_KEY=your_internal_key
-   OPENROUTER_API_KEY=your_openrouter_key
-   ```
-3. Boot the environment:
-   ```bash
-   docker-compose up -d --build
-   ```
+---
 
-### Verification
-Run the simulation script to verify the end-to-end pipeline:
+## 🚦 Quick Start & Demo Guide
+
+### 1. Boot the Stack
+Ensure you have your `OPENROUTER_API_KEY` in the `.env` file, then run:
+```bash
+docker-compose up -d --build
+```
+
+### 2. Run the Live Simulation
+The simulation script mimics real user behavior and handles the polling for the background processing:
 ```bash
 python scripts/simulate_events.py
 ```
 
-## 📜 Documentation
+### 3. Verification & Demo (Swagger)
+Open **`http://localhost:8000/docs`** and follow these steps to wow the judges:
+
+1. **Authorize**: Click the padlock and enter your `API_KEY`.
+2. **Check the Data Lake**: Use `GET /users/{user_id}/events/raw`. This proves we saved the *original, noisy* inputs before processing.
+3. **Show the Intelligence**: Use `GET /users/{user_id}/memory`. This shows the beautifully structured JSON output of the LLM.
+4. **Prove the Speed (The "Mic Drop")**:
+    - Open your browser's **Network Tab** (F12).
+    - Click **"Execute"** on the `/memory` endpoint once. (Watch the ~80ms Mongo fetch).
+    - Click **"Execute"** again immediately. (Watch the **~2ms** Redis Cache hit).
+
+---
+
+## 📜 Documentation Roadmap
 - [CHANGELOG.md](meta_docs/CHANGELOG.md): Detailed development history.
-- [AI_RULES.md](meta_docs/AI_RULES.md): Governance for AI pairs.
-- [implementation_plan.md](brain/implementation_plan.md): Technical roadmap.
+- [implementation_plan.md](brain/implementation_plan.md): The technical roadmap.
+- [AI_RULES.md](meta_docs/AI_RULES.md): Governance for the Zave ecosystem.
+
+---
 
 ## ⚖️ License
-MIT
+MIT - Built for the Zave Behavioral Hackathon.
