@@ -69,13 +69,22 @@ Open **`http://localhost:8000/docs`** and follow these steps to wow the judges:
     - Open your browser's **Network Tab** (F12).
     - Click **"Execute"** on the `/memory` endpoint once. (Watch the ~80ms Mongo fetch).
     - Click **"Execute"** again immediately. (Watch the **~2ms** Redis Cache hit).
-
 ---
 
-## 📜 Documentation Roadmap
-- [CHANGELOG.md](meta_docs/CHANGELOG.md): Detailed development history.
-- [implementation_plan.md](brain/implementation_plan.md): The technical roadmap.
-- [AI_RULES.md](meta_docs/AI_RULES.md): Governance for the Zave ecosystem.
+## 🛠️ Core Deliverables & Trade-offs
+
+### ✅ Requirement Checklist
+- [x] **GitHub Repository**: [Zave Memory Management](https://github.com/geeked-anshuk666/Zave-memory-management)
+- [x] **README**: Comprehensive architecture and philosophy.
+- [x] **API Documentation**: Automated Swagger UI at `/docs`.
+- [x] **Sample Data & Scripts**: Realistic simulation in `scripts/simulate_events.py`.
+- [x] **Professional Commentary**: Every file documented for human clarity.
+
+### ⚖️ Architecture Trade-offs
+1. **Eventual Consistency vs. Real-time Ingestion**: We chose an **asynchronous (Celery)** model. *Trade-off:* User memory isn't updated *instantly* (takes ~5-15s), but the API response for the storefront stays incredibly fast (<30ms).
+2. **MongoDB vs. SQL**: We chose **MongoDB**. *Trade-off:* Losing relational constraints, but gaining the ability to store deeply nested, evolving "Cognitive Layers" without migrations.
+3. **Redis Cache-Aside**: *Trade-off:* We use extra RAM for caching, but the millisecond performance gain for the end-user outweighs the infrastructure cost.
+4. **Data Lake Approach**: *Trade-off:* Increased storage usage by keeping "raw" data, but providing a 100% accurate audit trail and future-proofing the AI logic.
 
 ---
 
