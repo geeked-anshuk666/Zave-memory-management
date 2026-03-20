@@ -1,8 +1,9 @@
 from app.workers.celery_app import celery_app
-# from app.services.llm import llm_service (Step 6)
+from app.services.llm import llm_service
 # from app.services.memory import memory_service (Step 7)
-import time
+import asyncio
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +19,16 @@ def process_event(event_data: dict):
     
     logger.info(f"Processing event {event_id} for user {user_id}")
     
-    # Placeholder for Step 6/7 integration
-    # For now, we simulate processing time
-    time.sleep(1)
+    # Run async LLM extraction in synchronous Celery task
+    loop = asyncio.get_event_loop()
+    behavioral_data = loop.run_until_complete(llm_service.extract_behavioral_data(event_data))
     
-    return {"status": "processed", "event_id": event_id}
+    if not behavioral_data:
+        logger.error(f"Failed to extract behavioral data for event {event_id}")
+        return {"status": "failed", "reason": "llm_extraction_failed"}
+    
+    logger.info(f"Successfully extracted behavioral data for user {user_id}")
+    
+    # TODO: Step 7 - Update User Memory in MongoDB
+    
+    return {"status": "processed", "event_id": event_id, "behavioral_data": behavioral_data}
